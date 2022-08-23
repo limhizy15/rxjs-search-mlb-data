@@ -1,7 +1,8 @@
-import React, {useState, useEffect} from 'react';
+import React, {useEffect} from 'react';
 import * as rxjs from 'rxjs';
 import axios from 'axios';
 import _ from 'lodash';
+import { useObservableState } from 'observable-hooks';
 
 const url = 'https://lookup-service-prod.mlb.com/json/named.search_player_all.bam';
 
@@ -42,19 +43,17 @@ function App() {
 
   useEffect(() => {
     const subs = keyword$.pipe(
-      rxjs.tap(v => {
-        if (v == '' || v == null) {
-          return;
-        }
-
-        // TODO: Url 정리
-        axios.get(`${url}?sport_code='mlb'&active_sw='Y'&name_part='${v}%25'`)
-          .then((result) => {
-            const data = result.data as any;
-            result$.next(data.search_player_all.queryResults.row);
-          })
-          .catch(err => console.log(err))
-      })
+      rxjs.debounceTime(200),
+      rxjs.distinctUntilChanged(),
+      rxjs.switchMap(keyword => 
+        rxjs.from(axios.get(`${url}?sport_code='mlb'&active_sw='Y'&name_part='${keyword}%25'`)).pipe(
+          rxjs.map(result => {
+            result$.next(result.data.search_player_all.queryResults.row)
+          }),
+          rxjs.retry(2),
+          rxjs.catchError(err => rxjs.of(err))
+        )
+      )
     ).subscribe();
 
     return () => subs.unsubscribe();
@@ -69,12 +68,6 @@ function App() {
         onChange={onChangeKeyword} 
         placeholder={'이름을 입력해보세요 💡'}
       />
-
-      {/* getValue를 이렇게 하면 안되는 건지? */}
-      {/* <div>
-        <p>입력: {keyword$.getValue()}</p>
-      </div> */}
-      
       <ResultPage result$={result$} />
     </div>
   );
@@ -85,12 +78,7 @@ function ResultPage({
 }: {
   result$: rxjs.Observable<PlayerType[]>;
 }) {
-  const [result, setResult] = useState<PlayerType[]>([]);
-
-  // 정녕 useEffect를 써야하나
-  useEffect(() => {
-    result$.subscribe(v => setResult(v))
-  }, [])
+  const result = useObservableState(result$, [])
 
   if (result == null) {
     return (
