@@ -13,3 +13,6 @@ WISH TODO.. 🥲
 - [ ] debounce 추가
 - [ ] switchMap으로 변경 (결과 받아오는 도중 키워드 바뀔 경우 처리)
 - [ ] useEffect, useState 조합이 아닌 방법으로 subject에서 값 뽑아오는 법 찾기
+
+### 8/23
+- 결과 UI 정리
