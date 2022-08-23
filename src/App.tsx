@@ -3,32 +3,18 @@ import * as rxjs from 'rxjs';
 import axios from 'axios';
 import _ from 'lodash';
 import { useObservableState } from 'observable-hooks';
-
-const url = 'https://lookup-service-prod.mlb.com/json/named.search_player_all.bam';
-
-type PlayerType = {
-  'position': string;
-  'birth_country': string;
-  'name_display_first_last': string;
-  'college': string;
-  'name_display_roster': string;
-  'bats': string;
-  'team_full': string;
-  'team_abbrev': string;
-  'birth_date': string;
-  'throws': string;
-  'name_display_last_first': string;
-  'player_id': string;
-  'team_id': string;
-}
-
-type ResultType = {
-  created: Date;
-  totalSize: number;
-  row: PlayerType;
-}
+import { Link } from 'react-router-dom';
+import { API_URL, PlayerType } from './utils';
 
 function App() {
+  return (
+    <div>
+      <SearchPage />
+    </div>
+  )
+}
+
+function SearchPage() {
   const keyword$ = new rxjs.BehaviorSubject('');
   const result$ = new rxjs.BehaviorSubject<PlayerType[]>([]);
 
@@ -46,7 +32,7 @@ function App() {
       rxjs.debounceTime(200),
       rxjs.distinctUntilChanged(),
       rxjs.switchMap(keyword => 
-        rxjs.from(axios.get(`${url}?sport_code='mlb'&active_sw='Y'&name_part='${keyword}%25'`)).pipe(
+        rxjs.from(axios.get(`${API_URL}/json/named.search_player_all.bam?sport_code='mlb'&active_sw='Y'&name_part='${keyword}%25'`)).pipe(
           rxjs.map(result => {
             result$.next(result.data.search_player_all.queryResults.row)
           }),
@@ -93,7 +79,9 @@ function ResultPage({
         _.uniqBy(result, 'name_display_first_last').map(v => {
           return (
             <div key={v.name_display_first_last}>
-              <h4>{v.name_display_first_last} ({v.position})</h4>
+              <Link to={`/players/${v.player_id}`}>
+                <h4>{v.name_display_first_last} ({v.position})</h4>
+              </Link>
               <p>TEAM - {v.team_full}</p>
               <p>COUNTRY - {v.birth_country}</p>
             </div>
@@ -103,6 +91,5 @@ function ResultPage({
     </div>
   )
 }
-// TODO: 이름 누르면 player_id로 상세화면 이동하도록.. 하고싶구나
 
 export default App;
