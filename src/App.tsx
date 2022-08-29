@@ -1,8 +1,8 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useMemo} from 'react';
 import * as rxjs from 'rxjs';
 import axios from 'axios';
 import _ from 'lodash';
-import { useObservableState } from 'observable-hooks';
+import { useObservable, useObservableState } from 'observable-hooks';
 import { Link } from 'react-router-dom';
 import { API_URL, PlayerType } from './utils';
 
@@ -15,35 +15,27 @@ function App() {
 }
 
 function SearchPage() {
+  // subject는 진짜 최초인 것으로 최소한만 사용하도록
   const keyword$ = new rxjs.BehaviorSubject('');
-  const result$ = new rxjs.BehaviorSubject<PlayerType[]>([]);
 
   const onChangeKeyword = (event: React.ChangeEvent<HTMLInputElement>) => {
     keyword$.next(event.target.value)
   }
 
-  // TODO: 페이지 새로고침되면 keyword null string으로 변환되게
-  // useEffect(() => {
-  //   keyword$.next('')
-  // }, [])
-
-  useEffect(() => {
-    const subs = keyword$.pipe(
-      rxjs.debounceTime(200),
-      rxjs.distinctUntilChanged(),
-      rxjs.switchMap(keyword => 
-        rxjs.from(axios.get(`${API_URL}/json/named.search_player_all.bam?sport_code='mlb'&active_sw='Y'&name_part='${keyword}%25'`)).pipe(
-          rxjs.map(result => {
-            result$.next(result.data.search_player_all.queryResults.row)
-          }),
-          rxjs.retry(2),
-          rxjs.catchError(err => rxjs.of(err))
-        )
+  // 새로운 파이프라인을 만들고 메모이징한다
+  const result$ = useMemo(() => keyword$.pipe(
+    rxjs.debounceTime(200),
+    rxjs.distinctUntilChanged(),
+    rxjs.switchMap(keyword => 
+      rxjs.from(axios.get(`${API_URL}/json/named.search_player_all.bam?sport_code='mlb'&active_sw='Y'&name_part='${keyword}%25'`)).pipe(
+        rxjs.map(result => {
+          return (result.data.search_player_all.queryResults.row)
+        }),
+        rxjs.retry(2),
+        rxjs.catchError(err => rxjs.of(err))
       )
-    ).subscribe();
-
-    return () => subs.unsubscribe();
-  }, [])
+    )
+  ), []);
 
   return (
     <div className="App">
@@ -64,6 +56,7 @@ function ResultPage({
 }: {
   result$: rxjs.Observable<PlayerType[]>;
 }) {
+  // useObservableState은 콜백도 받는다!! 스트림 넘기면 내가 알아서 할게
   const result = useObservableState(result$, [])
 
   if (result == null) {

@@ -10,6 +10,7 @@ export default function Player() {
 
     useEffect(() => {
         const subs = rxjs.of(params.playerID).pipe(
+            // mergeMap은 그냥 스트림 오는거 다 merge.. 순서에 상관없이 오는대로
             rxjs.mergeMap(id => {
                 return rxjs.from(axios.get(`${API_URL}/json/named.player_info.bam?sport_code='mlb'&player_id=${id}`)).pipe(
                     rxjs.map(result => {
